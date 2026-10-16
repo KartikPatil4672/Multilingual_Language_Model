@@ -1,1 +1,49 @@
+# Environment and secrets
 .env
+.env.*
+!.env.example
+*.key
+*.pem
+*.secret
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+/dist/
+/build/
+!audio_button/frontend/build/
+*.egg
+.eggs/
+
+# Virtual environments
+venv/
+env/
+.venv/
+.venv*/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary and recording files
+*.tmp
+recording.*
+
+# Model files (large binaries)
+asrmodel/
+*.pt
+*.bin
+*.onnx
+
+# Streamlit
+.streamlit/secrets.toml

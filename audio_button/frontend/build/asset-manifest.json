@@ -1,0 +1,8 @@
+{
+  "files": {
+    "main.html": "./index.html"
+  },
+  "entrypoints": [
+    "index.html"
+  ]
+}

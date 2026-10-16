@@ -1,0 +1,15 @@
+[server]
+# Enable XSRF protection against cross-site request forgery
+enableXsrfProtection = true
+# Disable CORS - only allow same-origin requests
+enableCORS = false
+# Run headless (no auto-browser-open in production)
+headless = true
+
+[browser]
+# Don't send usage stats
+gatherUsageStats = false
+
+[global]
+# IMPORTANT: Disable development mode in production
+developmentMode = false

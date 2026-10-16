@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  html, body { margin: 0; background: transparent; font-family: sans-serif; }
+  .wrap { display: flex; flex-direction: column; align-items: center; padding: 16px 0; }
+  .btn {
+    width: 80px; height: 80px; border-radius: 50%; border: none; cursor: pointer;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s, box-shadow .3s; box-shadow: 0 4px 18px rgba(102,126,234,.5);
+  }
+  .btn:hover { transform: scale(1.06); }
+  .btn.recording { background: linear-gradient(135deg, #f093fb, #f5576c); animation: pulse 1.3s infinite; }
+  .btn.speaking  { background: linear-gradient(135deg, #4facfe, #00f2fe); animation: pulse 0.7s infinite; }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(245,87,108,.55); }
+    100% { box-shadow: 0 0 0 28px rgba(245,87,108,0); }
+  }
+  svg { width: 34px; height: 34px; fill: #fff; }
+  #label { margin-top: 12px; font-size: 14px; color: #aaa; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <button class="btn" id="btn" aria-label="Voice button">
+    <svg viewBox="0 0 24 24" id="icon"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+  </button>
+  <div id="label">Tap to speak</div>
+</div>
+
+<script>
+  // ---- Minimal Streamlit component protocol (no external library needed) ----
+  function send(type, data) {
+    window.parent.postMessage(
+      Object.assign({ isStreamlitMessage: true, type: type }, data), "*");
+  }
+  function setFrameHeight(h) { send("streamlit:setFrameHeight", { height: h }); }
+  function setValue(v) { send("streamlit:setComponentValue", { value: v, dataType: "json" }); }
+
+  const MIC = '<path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/>';
+  const STOP = '<rect x="6" y="6" width="12" height="12" rx="2"/>';
+
+  const btn = document.getElementById("btn");
+  const icon = document.getElementById("icon");
+  const label = document.getElementById("label");
+
+  let recorder = null, chunks = [], stream = null, audioCtx = null, rafId = null;
+
+  function setState(state) {
+    btn.className = "btn " + (state === "idle" ? "" : state);
+    icon.innerHTML = state === "idle" ? MIC : STOP;
+    label.textContent = state === "idle" ? "Tap to speak"
+                      : state === "recording" ? "Listening... tap to stop"
+                      : "Hearing you... tap to stop";
+  }
+
+  async function start() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (e) {
+      label.textContent = "Microphone blocked: " + e.name;
+      return;
+    }
+    chunks = [];
+    recorder = new MediaRecorder(stream);
+    recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    recorder.onstop = finish;
+    recorder.start();
+    setState("recording");
+
+    // Level meter: switch to "speaking" colour when voice is detected
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 512;
+    audioCtx.createMediaStreamSource(stream).connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    let heardVoice = false, lastVoice = Date.now();
+    (function tick() {
+      analyser.getByteFrequencyData(data);
+      const avg = data.reduce((a, b) => a + b, 0) / data.length;
+      if (recorder && recorder.state === "recording") {
+        const loud = avg > 18;
+        if (loud) { heardVoice = true; lastVoice = Date.now(); }
+        setState(loud ? "speaking" : "recording");
+        // auto-stop 1.2 s after the user stops talking (saves a manual tap)
+        if (heardVoice && Date.now() - lastVoice > 1200) { stop(); return; }
+        rafId = requestAnimationFrame(tick);
+      }
+    })();
+  }
+
+  function stop() {
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+  }
+
+  function finish() {
+    cancelAnimationFrame(rafId);
+    stream.getTracks().forEach((t) => t.stop());
+    if (audioCtx) audioCtx.close();
+    const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const b64 = reader.result.split(",")[1];
+      setValue({ id: Date.now() + "-" + Math.random(), audio: b64 });
+    };
+    reader.readAsDataURL(blob);
+    recorder = null;
+    setState("idle");
+  }
+
+  btn.addEventListener("click", () => { recorder ? stop() : start(); });
+
+  // Tell Streamlit the component is ready  <-- this is what was missing
+  window.addEventListener("message", () => {});
+  send("streamlit:componentReady", { apiVersion: 1 });
+  setFrameHeight(150);
+  setState("idle");
+</script>
+</body>
+</html>

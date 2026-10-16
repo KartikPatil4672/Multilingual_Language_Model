@@ -1,14 +1,15 @@
-streamlit==1.26.0
-openai==0.26.5
-numpy==1.23.5
-torch==1.13.1
-tqdm==4.64.1
-more-itertools==9.0.0
-transformers>=4.19.0
-ffmpeg-python==0.2.0
-git+https://github.com/openai/whisper.git
-soundfile==0.11.0
-python-magic==0.4.27 
-pydub==0.25.1  
-streamlit-audiorecorder==0.0.2 
-python-dotenv==1.0.0
+# Core framework
+streamlit>=1.44.0,<2.0
+
+# OpenAI SDK (v1.x rewrote the API; pin to latest stable)
+openai>=1.50.0,<2.0
+
+# Audio / ASR
+faster-whisper>=1.1.0,<2.0
+soundfile>=0.13.0,<1.0
+pydub>=0.25.1,<1.0
+
+# Utilities
+numpy>=1.26.0,<3.0
+python-magic>=0.4.27
+python-dotenv>=1.0.0,<2.0
